@@ -1,1 +1,12 @@
-AWS Parameters & Secrets Manager Tool Written in Go
+
+
+ ```
+
+ ██████   ██████   ██   ██ ███████ ████████ 
+██       ██    ██ ██   ██ ██         ██    
+██   ███ ██    ██ ███████ ███████    ██    
+██    ██ ██    ██ ██   ██      ██    ██    
+ ██████   ██████   ██   ██ ███████    ██    
+                                           
+```                                        
+A local developement env secrets and parameters manager with AWS integrations and secure env storage and sharing.
