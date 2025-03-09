@@ -2,7 +2,7 @@
 Copyright © 2025 Justin Dodson <EMAIL ADDRESS>
 */
 
-package main
+package gohst
 
 import (
 	"log"
@@ -10,7 +10,7 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-func main() {
+func Start() {
 	g, err := gocui.NewGui(gocui.Output256)
 	if err != nil {
 		log.Fatalln(err)

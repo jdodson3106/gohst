@@ -1,4 +1,4 @@
-module github.com/jdodson/aws-pm
+module github.com/jdodson3106/gohst
 
 go 1.24.0
 

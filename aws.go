@@ -1,4 +1,4 @@
-package main
+package gohst
 
 type awsCreds struct {
 }

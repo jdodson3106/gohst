@@ -6,22 +6,23 @@ package cmd
 import (
 	"os"
 
+	"github.com/jdodson3106/gohst"
 	"github.com/spf13/cobra"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "aws-pm",
-	Short: "Used to view and manage AWS Parameter Store parameters",
-	Long: `This application is used to view and manage AWS Parameter Store parameters.
-		It can be used to list, get, put, and delete parameters,
-		as well as copy and export paramaters to a file.
-		
-		There are some workflows for generating and storing secure parameters or copying parameters between environments
-		that are supported here as well.`,
+	Use:   "gohst",
+	Short: "Used to view and manage your env parameters and secrets in your local environment",
+	Long: `Gohst is a env and secrets manager for managing key rotations both locally 
+         and in your AWS account. 
+
+         The tool facilitates the generation of env files and secure sharing of secrets with 
+         other users on your team.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
+		gohst.Start()
 	},
 }
 
