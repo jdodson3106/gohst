@@ -12,9 +12,6 @@ import (
 )
 
 const (
-	StatusTop = iota
-	StatusBottom
-
 	// renderings
 	WidgetPadding int = 1
 	InputHeight   int = 2
@@ -32,6 +29,10 @@ const (
 	SearchBarTitle     = "Search For Parameter Key"
 	ParameterListTitle = "Parameters"
 	SecretsListTitle   = "Secrets"
+)
+
+var (
+	showLoginPannel bool = false
 )
 
 type frame struct {
@@ -74,8 +75,7 @@ func InitUI(g *cui.Gui) error {
 		gui:  g,
 		name: MainGui,
 		session: &session{
-			context:    context.WithValue(context.Background(), "profile", "QAProfile"),
-			isLoggedIn: true,
+			context: context.Background(),
 		},
 	}
 	g.Cursor = true
@@ -90,7 +90,7 @@ func (u *UI) Layout(g *cui.Gui) error {
 		end:   point{maxX, maxY},
 	}.withPadding()
 
-	if err := u.buildStatusBar(StatusTop, mainFrame); err != nil {
+	if err := u.buildStatusBar(mainFrame); err != nil {
 		if err != cui.ErrUnknownView {
 			log.Fatalf("error status bar: %s\n", err)
 		}
@@ -111,22 +111,38 @@ func (u *UI) Layout(g *cui.Gui) error {
 		}
 	}
 
+	if showLoginPannel {
+		if err := u.buildLoginView(maxX, maxY); err != nil {
+			if err != cui.ErrUnknownView {
+				log.Fatal(err)
+			}
+		}
+		g.SetCurrentView("loginView")
+		g.SetViewOnTop("loginView")
+	}
+
 	return nil
 }
 
-func (u *UI) buildStatusBar(location int, f frame) error {
+func (u *UI) buildStatusBar(f frame) error {
 	var loggedInStatus string
+	// TODO: Move the ANSI colors to use the termbox coloring so
+	// I don't have to parse out the string additions to calc mid space
 	if u.session.isLoggedIn {
 		loggedInStatus = "\033[0;32mActive"
+		showLoginPannel = true
 	} else {
 		loggedInStatus = "\033[0;31mInactive"
+		showLoginPannel = false
 	}
 
 	currentProfile, ok := u.session.profile()
 	if !ok {
 		currentProfile = "\033[0;31mNo Profile Found"
+		showLoginPannel = true
 	} else {
 		currentProfile = "\033[0;32m" + currentProfile
+		showLoginPannel = false
 	}
 
 	start := point{x: WidgetPadding, y: WidgetPadding}
@@ -152,6 +168,11 @@ func (u *UI) buildStatusBar(location int, f frame) error {
 		sb.WriteString(profileString)
 		v.Write([]byte(sb.String()))
 	}
+
+	return nil
+}
+
+func (u *UI) buildKeybindingsHelpView(maxX, maxY int) error {
 	return nil
 }
 
@@ -161,10 +182,8 @@ func (u *UI) buildSearchView(maxX, maxY int) error {
 	start := point{x: WidgetPadding, y: startY}
 	end := point{x: maxX - WidgetPadding, y: startY + InputHeight}
 
-	//log.Fatalf("start: %+v, end: %+v\n", start, end)
-
 	v, err := u.buildView(start, end, SearchBarView)
-	if err != nil {
+	if err != nil && err != cui.ErrUnknownView {
 		return err
 	}
 	v.Title = SearchBarTitle
@@ -207,6 +226,21 @@ func (u *UI) buildSecretsListView(start, end point) error {
 	}
 
 	v.Title = SecretsListTitle
+	return err
+}
+
+func (u *UI) buildLoginView(maxX, maxY int) error {
+	width := maxX / 4
+	height := maxY / 4
+
+	start := point{x: (maxX / 2) - (width / 2), y: (maxY / 2) - (height / 2)}
+	end := point{x: (maxX / 2) + (width / 2), y: maxY/2 + (height / 2)}
+	v, err := u.buildView(start, end, "loginView")
+	if err != nil && err != cui.ErrUnknownView {
+		log.Fatalf("error building login view: %s\n", err)
+	}
+
+	v.Title = "Select AWS Profile"
 	return err
 }
 

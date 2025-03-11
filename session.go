@@ -20,3 +20,7 @@ func (s *session) profile() (p string, ok bool) {
 
 	return p, true
 }
+
+func (s *session) listProfiles() ([]string, error) {
+	return nil, nil
+}
