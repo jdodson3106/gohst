@@ -5,6 +5,7 @@ Copyright © 2025 Justin Dodson <EMAIL ADDRESS>
 package gohst
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/jroimartin/gocui"
@@ -34,4 +35,10 @@ func Start() {
 
 func quit(g *gocui.Gui, view *gocui.View) error {
 	return gocui.ErrQuit
+}
+
+func Playground() {
+	fmt.Println("running playground")
+	t := session{}
+	t.listProfiles()
 }

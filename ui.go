@@ -241,6 +241,17 @@ func (u *UI) buildLoginView(maxX, maxY int) error {
 	}
 
 	v.Title = "Select AWS Profile"
+	if len(v.BufferLines()) == 0 {
+		profiles, err := u.session.listProfiles()
+		if err != nil {
+			// TODO: Maybe have a better way to handle this
+			fmt.Fprintln(v, "error loading AWS Profiles")
+		} else {
+			for _, p := range profiles {
+				fmt.Fprintln(v, p)
+			}
+		}
+	}
 	return err
 }
 

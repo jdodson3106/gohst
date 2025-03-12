@@ -3,3 +3,6 @@ build:
 
 run: build
 	@./cmd/bin/gohst
+
+play: build
+	@./cmd/bin/gohst -p=true

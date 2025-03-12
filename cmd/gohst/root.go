@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var runPlayground bool
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "gohst",
@@ -22,7 +24,11 @@ var rootCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		gohst.Start()
+		if runPlayground {
+			gohst.Playground()
+		} else {
+			gohst.Start()
+		}
 	},
 }
 
@@ -44,5 +50,5 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().BoolVarP(&runPlayground, "playground", "p", false, "Runs test code for development purposes")
 }
