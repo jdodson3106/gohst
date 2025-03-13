@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/jdodson3106/gohst/internal/auth"
 	"github.com/jroimartin/gocui"
 )
 
@@ -39,6 +40,6 @@ func quit(g *gocui.Gui, view *gocui.View) error {
 
 func Playground() {
 	fmt.Println("running playground")
-	t := session{}
-	t.listProfiles()
+	t := auth.Session{}
+	t.ListProfiles()
 }

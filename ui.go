@@ -1,13 +1,11 @@
 package gohst
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"strings"
 
-	//"os
-
+	"github.com/jdodson3106/gohst/internal/auth"
 	cui "github.com/jroimartin/gocui"
 )
 
@@ -63,26 +61,31 @@ type point struct {
 	y int
 }
 
+// UI struct is the core of the application UI
 type UI struct {
 	gui     *cui.Gui
 	name    string
 	views   []*cui.View
-	session *session
+	session *auth.Session
 }
 
+// InitUI creates a new UI and sets it up as the
+// manager of the gocui views
 func InitUI(g *cui.Gui) error {
+	p := auth.NewGohstProvider()
 	ui := &UI{
-		gui:  g,
-		name: MainGui,
-		session: &session{
-			context: context.Background(),
-		},
+		gui:     g,
+		name:    MainGui,
+		session: auth.NewSession(p),
 	}
+
 	g.Cursor = true
 	g.SetManager(ui)
 	return nil
 }
 
+// Layout implements the gocui.Manager interface
+// This is the entry point for the core view creations
 func (u *UI) Layout(g *cui.Gui) error {
 	maxX, maxY := g.Size()
 	mainFrame := frame{
@@ -124,11 +127,15 @@ func (u *UI) Layout(g *cui.Gui) error {
 	return nil
 }
 
+// buildStatusBar creates the initial status bar that shows the
+// AWS login status. If not logged in, this will alos set the
+// showLoginPannel flag to true so that view gets rendered at
+// top of view stack
 func (u *UI) buildStatusBar(f frame) error {
 	var loggedInStatus string
 	// TODO: Move the ANSI colors to use the termbox coloring so
 	// I don't have to parse out the string additions to calc mid space
-	if u.session.isLoggedIn {
+	if u.session.IsLoggedIn {
 		loggedInStatus = "\033[0;32mActive"
 		showLoginPannel = true
 	} else {
@@ -136,12 +143,13 @@ func (u *UI) buildStatusBar(f frame) error {
 		showLoginPannel = false
 	}
 
-	currentProfile, ok := u.session.profile()
+	var currentProfile string
+	p, ok := u.session.Profile()
 	if !ok {
 		currentProfile = "\033[0;31mNo Profile Found"
 		showLoginPannel = true
 	} else {
-		currentProfile = "\033[0;32m" + currentProfile
+		currentProfile = "\033[0;32m" + p.Name
 		showLoginPannel = false
 	}
 
@@ -176,6 +184,8 @@ func (u *UI) buildKeybindingsHelpView(maxX, maxY int) error {
 	return nil
 }
 
+// buildSearchView creates the top search bar view
+// for seachring through existing secrets and parameters
 func (u *UI) buildSearchView(maxX, maxY int) error {
 	startY := WidgetPadding + LineHeight + 1
 
@@ -191,6 +201,8 @@ func (u *UI) buildSearchView(maxX, maxY int) error {
 	return nil
 }
 
+// buildMainView constructs the core of the UI body.
+// This view creates the Parameters and Secrets sections
 func (u *UI) buildMainView(maxX, maxY int) error {
 	startY := WidgetPadding + LineHeight + 1 + InputHeight + 1
 	ps := point{x: WidgetPadding, y: startY}
@@ -209,6 +221,8 @@ func (u *UI) buildMainView(maxX, maxY int) error {
 	return nil
 }
 
+// buildParameterListView constructs a View for the AWS
+// parameter listing
 func (u *UI) buildParameterListView(start, end point) error {
 	v, err := u.buildView(start, end, ParametersView)
 	if err != nil && err != cui.ErrUnknownView {
@@ -219,6 +233,8 @@ func (u *UI) buildParameterListView(start, end point) error {
 	return err
 }
 
+// buildSecretsListView constructs a Vew for the AWS
+// secrets listing
 func (u *UI) buildSecretsListView(start, end point) error {
 	v, err := u.buildView(start, end, SecretsView)
 	if err != nil && err != cui.ErrUnknownView {
@@ -229,6 +245,8 @@ func (u *UI) buildSecretsListView(start, end point) error {
 	return err
 }
 
+// buildLoginView buildst the login view panel that shows all the
+// AWS profiles to chose from
 func (u *UI) buildLoginView(maxX, maxY int) error {
 	width := maxX / 4
 	height := maxY / 4
@@ -242,10 +260,10 @@ func (u *UI) buildLoginView(maxX, maxY int) error {
 
 	v.Title = "Select AWS Profile"
 	if len(v.BufferLines()) == 0 {
-		profiles, err := u.session.listProfiles()
+		profiles, err := u.session.ListProfiles()
 		if err != nil {
 			// TODO: Maybe have a better way to handle this
-			fmt.Fprintln(v, "error loading AWS Profiles")
+			fmt.Fprintf(v, "error loading AWS Profiles\n%s", err)
 		} else {
 			for _, p := range profiles {
 				fmt.Fprintln(v, p)
@@ -255,6 +273,8 @@ func (u *UI) buildLoginView(maxX, maxY int) error {
 	return err
 }
 
+// buildView accepts a start and end point and a name to register the
+// view with the underlying gui.
 func (u *UI) buildView(start, end point, name string) (*cui.View, error) {
 	if v, err := u.gui.SetView(name, start.x, start.y, end.x, end.y); err != nil {
 		if err != cui.ErrUnknownView {
@@ -266,6 +286,8 @@ func (u *UI) buildView(start, end point, name string) (*cui.View, error) {
 	return u.lookupViewByName(name)
 }
 
+// lookupViewByName searches through all the views and
+// returns the view by its defined name
 func (u *UI) lookupViewByName(name string) (*cui.View, error) {
 	for _, v := range u.views {
 		view := *v
