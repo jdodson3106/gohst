@@ -1,9 +1,10 @@
 package main
 
 import (
-	cmd "github.com/jdodson3106/gohst/cmd/gohst"
+	"github.com/jdodson3106/gohst"
 )
 
 func main() {
-	cmd.Execute()
+	gohst.Run()
+	// cmd.Execute()
 }
