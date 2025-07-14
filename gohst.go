@@ -92,13 +92,13 @@ func Run() {
 	fmt.Printf("\nConnecting to host %s\n", hostAddr)
 
 	// TODO: save config in file
-	cb, err := knownhosts.New("/Users/jdd/.ssh/known_hosts")
+	cb, err := knownhosts.New("")
 	if err != nil {
 		panic(err)
 	}
 
 	cc := ssh.ClientConfig{
-		User:            "jdd",
+		User:            "",
 		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
 		HostKeyCallback: cb,
 		Timeout:         2 * time.Second,
