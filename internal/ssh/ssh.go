@@ -3,20 +3,26 @@ package ssh
 import (
 	"log"
 	"os"
-	"runtime"
 )
 
 const (
 	// The default file names for private key algos
-	RSA     = "id_rsa"
-	ECDSA   = "id_ecdsa"
-	ED25519 = "id_ed25519"
+	ID_RSA     = "id_rsa"
+	ID_ECDSA   = "id_ecdsa"
+	ID_ED25519 = "id_ed25519"
+
+	// the keytypes
+	ED25519 = iota
+	RSA
+	ECDSA
 
 	// Handling Host Auth
 	TOFU = iota
 	KnownOnly
 	PinnedHost
 )
+
+type KeyType int
 
 // Connectionconfig is configured on first use and the stored locally
 // for re-use.
@@ -27,15 +33,6 @@ type ConnectionConfig struct {
 	// The port can be provided. If no port provided the
 	// default 22 port will be assumed
 	Port string
-
-	// the keyname will be where we grab the private key from in the .ssh
-	// directory to perform the handshake. The defaults are assumed unless
-	// otherwise specified
-	KeyName string
-
-	// The name of your known hosts file. If not provided we assume the default
-	// of known_hosts
-	KnownHostsName string
 
 	// this defines how the public key of the host is verified
 	// we do not support blind handshakes, however trust on first use (TOFU)
@@ -50,37 +47,69 @@ type ConnectionConfig struct {
 }
 
 func DefaultConfiguration(host string) *ConnectionConfig {
-	osType := runtime.GOOS
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("unable to locate user home directory: %s", err)
-	}
-
-	var sshDir string
-	if osType == "windows" {
-		// TODO: handle setting up on windows
-		return nil
-	} else {
-		sshDir = homeDir + "/.ssh"
-	}
-
 	return &ConnectionConfig{
 		Host:             host,
 		Port:             "22",
-		KeyName:          sshDir + "/" + ED25519,
-		KnownHostsName:   sshDir + "/known_hosts",
 		HostAuthProtocol: TOFU,
 	}
 }
 
+type KeyHost struct {
+	// The KeyType represents the algo type used to sign the key
+	// supported types are ED25519, RSA, and ECDSA
+	KeyType int
+
+	// the keyname will be where we grab the private key from in the .ssh
+	// directory to perform the handshake. The defaults are assumed unless
+	// otherwise specified
+	KeyName string
+
+	// The name of your known hosts file. If not provided we assume the default
+	// of known_hosts
+	KnownHostsName string
+}
+
+// DefaultKeyHost returns a defalt config of the ssh key files
+// assumes id_ed25519 for the private key and known_hosts for the
+// known hosts file
+func DefaultKeyHost() *KeyHost {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("unable to locate user home directory: %s", err)
+		return &KeyHost{}
+	}
+
+	sshDir := home + "/.ssh/"
+	return &KeyHost{
+		KeyType:        ED25519,
+		KeyName:        sshDir + ID_ED25519,
+		KnownHostsName: sshDir + "known_hosts",
+	}
+}
+
 type SSHClient struct {
+	// KeyHost is the settings for where the private key and
+	// known hosts files live in the user's system
+	KeyHost *KeyHost
+
+	// config is the the connection details for how to
+	// connect to the host
 	config *ConnectionConfig
 }
 
 // NewClient creates a new SSHClient with a default configuration
 func NewClient(hostIP string) *SSHClient {
 	return &SSHClient{
-		config: DefaultConfiguration(hostIP),
+		config:  DefaultConfiguration(hostIP),
+		KeyHost: DefaultKeyHost(),
+	}
+}
+
+// NewClientWithKeyHost returns a new SSHClient with the provided KeyHost
+// used when the machine doesn't hold the default file locations
+func NewClientWithKeyHost(hostIP string, kh *KeyHost) *SSHClient {
+	return &SSHClient{
+		config:  DefaultConfiguration(hostIP),
+		KeyHost: kh,
 	}
 }
