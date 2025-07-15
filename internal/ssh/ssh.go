@@ -1,8 +1,17 @@
 package ssh
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"log"
 	"os"
+	"time"
+
+	"github.com/jdodson3106/gohst/internal/commands"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
+	"golang.org/x/term"
 )
 
 const (
@@ -34,6 +43,9 @@ type ConnectionConfig struct {
 	// default 22 port will be assumed
 	Port string
 
+	// Name of the user on the private key
+	User string
+
 	// this defines how the public key of the host is verified
 	// we do not support blind handshakes, however trust on first use (TOFU)
 	// is the default and initial connection is added to your known_hosts file
@@ -47,9 +59,14 @@ type ConnectionConfig struct {
 }
 
 func DefaultConfiguration(host string) *ConnectionConfig {
+	user, err := commands.GetCurrentUser()
+	if err != nil {
+		log.Fatal("unable to find user on machine", err)
+	}
 	return &ConnectionConfig{
 		Host:             host,
 		Port:             "22",
+		User:             user,
 		HostAuthProtocol: TOFU,
 	}
 }
@@ -87,6 +104,21 @@ func DefaultKeyHost() *KeyHost {
 	}
 }
 
+func RSAKeyHostDefault() *KeyHost {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("unable to locate user home directory: %s", err)
+		return &KeyHost{}
+	}
+
+	sshDir := home + "/.ssh/"
+	return &KeyHost{
+		KeyType:        RSA,
+		KeyName:        sshDir + ID_RSA,
+		KnownHostsName: sshDir + "known_hosts",
+	}
+}
+
 type SSHClient struct {
 	// KeyHost is the settings for where the private key and
 	// known hosts files live in the user's system
@@ -95,6 +127,10 @@ type SSHClient struct {
 	// config is the the connection details for how to
 	// connect to the host
 	config *ConnectionConfig
+
+	clientConfig *ssh.ClientConfig
+
+	client *ssh.Client
 }
 
 // NewClient creates a new SSHClient with a default configuration
@@ -112,4 +148,83 @@ func NewClientWithKeyHost(hostIP string, kh *KeyHost) *SSHClient {
 		config:  DefaultConfiguration(hostIP),
 		KeyHost: kh,
 	}
+}
+
+func (c *SSHClient) Connect() error {
+	requiresPW := false
+	signer, err := ssh.ParsePrivateKey(c.config.HostKey)
+
+	if err != nil {
+		fmt.Printf("%+v\n", err)
+		if errors.Is(err, &ssh.PassphraseMissingError{}) {
+			requiresPW = true
+		} else {
+			// TODO: add error context
+			return err
+		}
+
+		// if err.Error() == "ssh: this private key is passphrase protected" {
+		// 	requiresPW = true
+		// } else {
+		// 	panic(err)
+		// }
+	}
+
+	if requiresPW {
+		fmt.Print("Enter passphrase: ")
+		pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			// TODO: add error context
+			return err
+		}
+		signer, err = ssh.ParsePrivateKeyWithPassphrase(c.config.HostKey, pw)
+		if err != nil {
+			// TODO: add error context
+			return err
+		}
+	}
+	fmt.Printf("\nConnecting to host %s\n", c.config.Host)
+
+	// get a callback function from the known hosts file
+	cb, err := knownhosts.New(c.KeyHost.KnownHostsName)
+	if err != nil {
+		return err
+	}
+
+	cc := ssh.ClientConfig{
+		User:            c.config.User,
+		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		HostKeyCallback: cb,
+		Timeout:         2 * time.Second,
+	}
+
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%s", c.config.Host, c.config.Port), &cc)
+	if err != nil {
+		// TODO: add error context
+		return err
+	}
+	c.client = client
+	return nil
+}
+
+func (c *SSHClient) Close() error {
+	return c.client.Close()
+}
+
+func (c *SSHClient) RunCommand(command string) ([]byte, error) {
+	session, err := c.client.NewSession()
+	if err != nil {
+		// TODO: add error context
+		return nil, err
+	}
+	defer session.Close()
+
+	var buf bytes.Buffer
+	session.Stdout = &buf
+
+	if err := session.Run(command); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
