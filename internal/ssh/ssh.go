@@ -151,14 +151,18 @@ func NewClientWithKeyHost(hostIP string, kh *KeyHost) *SSHClient {
 }
 
 func (c *SSHClient) Connect() error {
+	fmt.Printf("Opening SSH connection with key: %s\n", c.KeyHost.KeyName)
 	requiresPW := false
-	signer, err := ssh.ParsePrivateKey(c.config.HostKey)
+
+	privateKey := c.getPrivateKey()
+	signer, err := ssh.ParsePrivateKey(privateKey)
 
 	if err != nil {
 		fmt.Printf("%+v\n", err)
 		if errors.Is(err, &ssh.PassphraseMissingError{}) {
 			requiresPW = true
 		} else {
+			fmt.Printf("err: %s\n", err)
 			// TODO: add error context
 			return err
 		}
@@ -208,6 +212,7 @@ func (c *SSHClient) Connect() error {
 }
 
 func (c *SSHClient) Close() error {
+	fmt.Println("Closing SSH connection...")
 	return c.client.Close()
 }
 
@@ -227,4 +232,13 @@ func (c *SSHClient) RunCommand(command string) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (c *SSHClient) getPrivateKey() []byte {
+	out, err := os.ReadFile(c.KeyHost.KeyName)
+	if err != nil {
+		log.Fatalf("unable to read key file at %s :: ERROR: %s", c.KeyHost.KeyName, err)
+	}
+
+	return out
 }

@@ -5,6 +5,6 @@ import (
 )
 
 func main() {
-	gohst.Run()
+	gohst.TempRun()
 	// cmd.Execute()
 }

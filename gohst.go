@@ -43,9 +43,12 @@ func Playground() {
 	t.ListProfiles()
 }
 
-func Run() {
-	client := ssh.NewClientWithKeyHost("34.0.128.156", ssh.RSAKeyHostDefault())
-	client.Connect()
+func TempRun() {
+	client := ssh.NewClient("34.0.128.156")
+	// client := ssh.NewClientWithKeyHost("34.0.128.156", ssh.RSAKeyHostDefault())
+	if err := client.Connect(); err != nil {
+		log.Fatalf("error connecting to host: %s", err)
+	}
 	defer client.Close()
 
 	out, err := client.RunCommand("whoami")
