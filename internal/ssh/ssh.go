@@ -158,20 +158,15 @@ func (c *SSHClient) Connect() error {
 	signer, err := ssh.ParsePrivateKey(privateKey)
 
 	if err != nil {
-		fmt.Printf("%+v\n", err)
-		if errors.Is(err, &ssh.PassphraseMissingError{}) {
+		// check the if the error is PassphraseMissingError type
+		pme := &ssh.PassphraseMissingError{}
+		if errors.As(err, &pme) {
 			requiresPW = true
 		} else {
 			fmt.Printf("err: %s\n", err)
 			// TODO: add error context
 			return err
 		}
-
-		// if err.Error() == "ssh: this private key is passphrase protected" {
-		// 	requiresPW = true
-		// } else {
-		// 	panic(err)
-		// }
 	}
 
 	if requiresPW {
@@ -181,7 +176,7 @@ func (c *SSHClient) Connect() error {
 			// TODO: add error context
 			return err
 		}
-		signer, err = ssh.ParsePrivateKeyWithPassphrase(c.config.HostKey, pw)
+		signer, err = ssh.ParsePrivateKeyWithPassphrase(privateKey, pw)
 		if err != nil {
 			// TODO: add error context
 			return err
